@@ -1,38 +1,60 @@
 import datetime as dt
 import requests
 import tkinter as tk
+from tkinter import messagebox
 
 BASE_URL = "http://api.openweathermap.org/data/2.5/weather?"
-API_KEY = "6b01e4260c1df19b7c854b0e40dd0f0b"
+API_KEY = "889836504f124ae43e24093292d22cd9"  # Replace with your actual API key
+
 
 def kelvin_to_celsius_fahrenheit(kelvin):
     celsius = kelvin - 273.15
-    fahrenheit = celsius* (9/5) + 32
+    fahrenheit = celsius * (9 / 5) + 32
     return celsius, fahrenheit
 
+
 def get_weather_data(city):
-    url = BASE_URL + "appid=" + API_KEY + "&q=" + city
-    response = requests.get(url).json()
-    temp_kelvin = response['main']['temp']
-    temp_celsius, temp_fahrenheit = kelvin_to_celsius_fahrenheit(temp_kelvin)
-    feels_like_kelvin = response['main']['feels_like']
-    feels_like_celsius, feels_like_fahrenheit = kelvin_to_celsius_fahrenheit(feels_like_kelvin)
-    wind_speed = response['wind']['speed']
-    humidity = response['main']['humidity']
-    description = response['weather'][0]['description']
-    sunrise_time = dt.datetime.utcfromtimestamp(response['sys']['sunrise'] + response['timezone'])
-    sunset_time = dt.datetime.utcfromtimestamp(response['sys']['sunset'] + response['timezone'])
-    return temp_celsius, humidity, wind_speed, description, sunrise_time, sunset_time
+    url = f"{BASE_URL}appid={API_KEY}&q={city}"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an error for bad status codes
+        data = response.json()
+
+        temp_kelvin = data['main']['temp']
+        temp_celsius, temp_fahrenheit = kelvin_to_celsius_fahrenheit(temp_kelvin)
+        feels_like_kelvin = data['main']['feels_like']
+        feels_like_celsius, feels_like_fahrenheit = kelvin_to_celsius_fahrenheit(feels_like_kelvin)
+        wind_speed = data['wind']['speed']
+        humidity = data['main']['humidity']
+        description = data['weather'][0]['description']
+        timezone_offset = data['timezone']
+        sunrise_time = dt.datetime.utcfromtimestamp(data['sys']['sunrise'] + timezone_offset)
+        sunset_time = dt.datetime.utcfromtimestamp(data['sys']['sunset'] + timezone_offset)
+
+        return temp_celsius, humidity, wind_speed, description, sunrise_time, sunset_time
+    except requests.exceptions.HTTPError as http_err:
+        messagebox.showerror("HTTP Error", f"HTTP error occurred: {http_err}")
+    except Exception as err:
+        messagebox.showerror("Error", f"An error occurred: {err}")
+    return None
+
 
 def show_weather_data():
     city = city_entry.get()
-    temp_celsius, humidity, wind_speed, description, sunrise_time, sunset_time = get_weather_data(city)
-    temp_label.config(text=f"Temperature: {temp_celsius:.2f} C")
-    humidity_label.config(text=f"Humidity: {humidity}%")
-    wind_label.config(text=f"Wind Speed: {wind_speed}m/s")
-    weather_label.config(text=f"Weather: {description}")
-    sunrise_label.config(text=f"Sun Rises at: {sunrise_time}")
-    sunset_label.config(text=f"Sun Sets at: {sunset_time}")
+    if not city:
+        messagebox.showwarning("Input Error", "Please enter a city name.")
+        return
+
+    weather_data = get_weather_data(city)
+    if weather_data:
+        temp_celsius, humidity, wind_speed, description, sunrise_time, sunset_time = weather_data
+        temp_label.config(text=f"Temperature: {temp_celsius:.2f} °C")
+        humidity_label.config(text=f"Humidity: {humidity}%")
+        wind_label.config(text=f"Wind Speed: {wind_speed} m/s")
+        weather_label.config(text=f"Weather: {description}")
+        sunrise_label.config(text=f"Sun Rises at: {sunrise_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        sunset_label.config(text=f"Sun Sets at: {sunset_time.strftime('%Y-%m-%d %H:%M:%S')}")
+
 
 root = tk.Tk()
 root.title("Weather App")
